@@ -1,0 +1,45 @@
+{
+  "name": "@matheusbozetti/run-concurrent",
+  "version": "1.0.0",
+  "description": "A utility to run concurrent tasks with controlled concurrency",
+  "type": "module",
+  "license": "MIT",
+  "main": "dist/cjs/index.cjs",
+  "module": "dist/esm/index.mjs",
+  "types": "dist/esm/index.d.ts",
+  "files": [
+    "dist/**"
+  ],
+  "scripts": {
+    "build": "rollup -c",
+    "dev": "tsx src/index.ts",
+    "test": "vitest"
+  },
+  "keywords": [
+    "concurrency",
+    "parallel",
+    "task-runner",
+    "async",
+    "await",
+    "promise",
+    "promise-all",
+    "performance",
+    "batch-processing",
+    "throttling",
+    "queue",
+    "typescript",
+    "nodejs",
+    "esm",
+    "cjs"
+  ],
+  "devDependencies": {
+    "@rollup/plugin-node-resolve": "^16.0.0",
+    "@rollup/plugin-typescript": "^11.1.2",
+    "@types/node": "^18.0.0",
+    "rollup": "^4.34.9",
+    "tslib": "^2.8.1",
+    "tsx": "^4.0.0",
+    "typescript": "^5.0.0",
+    "vitest": "^1.6.1"
+  }
+}
