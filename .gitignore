@@ -1,0 +1,40 @@
+# Node modules
+node_modules/
+
+# Compiled output
+dist/
+build/
+
+# TypeScript declaration files
+*.d.ts
+
+# TypeScript cache
+.tsbuildinfo
+
+# NPM package logs
+npm-debug.log
+yarn-debug.log
+yarn-error.log
+
+# VS Code settings
+.vscode/
+
+# JetBrains IDEs
+.idea/
+
+# Logs
+logs/
+*.log
+
+# dotenv environment files
+.env
+.env.* 
+
+# macOS system files
+.DS_Store
+
+# Linux system files
+*~
+
+# Windows system files
+Thumbs.db
