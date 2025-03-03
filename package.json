@@ -1,6 +1,6 @@
 {
   "name": "@matheusbozetti/run-concurrent",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A utility to run concurrent tasks with controlled concurrency",
   "type": "module",
   "license": "MIT",
@@ -10,6 +10,10 @@
   "files": [
     "dist/**"
   ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/matheusbozetti/run-concurrent.git"
+  },
   "scripts": {
     "build": "rollup -c",
     "dev": "tsx src/index.ts",
