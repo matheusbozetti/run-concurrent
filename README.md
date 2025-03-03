@@ -9,23 +9,23 @@ While `Promise.all` runs all promises in parallel with **no limit**, `runConcurr
 ✅ Control concurrency level (`concurrency` option).  
 ✅ Handle errors gracefully without stopping execution (`stopOnError: false`).  
 ✅ Stop execution on the first failure (`stopOnError: true`).  
-✅ Maintain an efficient event loop by preventing task overload.
+✅ Maintain an efficient event loop by preventing task overload.  
 ✅ Get the results in the order the promises were declared and not executed (Just like Promise.all)
 
 ## 📦 Installation
 
 ```sh
-pnpm add run-concurrent
+pnpm add @matheusbozetti/run-concurrent
 # or
-npm install run-concurrent
+npm install @matheusbozetti/run-concurrent
 # or
-yarn add run-concurrent
+yarn add @matheusbozetti/run-concurrent
 ```
 
 ## ✨ Usage
 
 ```ts
-import { runConcurrent } from "run-concurrent";
+import { runConcurrent } from "@matheusbozetti/run-concurrent";
 
 const tasks = [
   async () => "Task 1",
