@@ -46,7 +46,7 @@ console.log(results); // [ 'Task 1', 'Task 2', 'Task 3' ]
 ### `concurrency`
 
 - Type: `number`
-- Default: `1`
+- Default: `5`
 - Controls how many tasks run simultaneously.
 
 ### `stopOnError`

@@ -13,8 +13,8 @@ interface RunConcurrentOptions {
  * @template T The type of the task return values.
  * @param {Array<() => Promise<T>>} tasks - An array of asynchronous functions to execute.
  * @param {Object} [options] - Configuration options for concurrency control.
- * @param {number} [options.concurrency=1] - The maximum number of tasks running in parallel.
- * @param {boolean} [options.stopOnError=true] - If `true`, execution stops at the first error.
+ * @param {number} [options.concurrency=5] - The maximum number of tasks running in parallel. (Default: 5)
+ * @param {boolean} [options.stopOnError=true] - If `true`, execution stops at the first error. (Default: true)
  *
  * @returns {Promise<Array<T | ConcurrencyError>>} A promise resolving to an array of results.
  *
@@ -55,7 +55,7 @@ export async function runConcurrent<T extends unknown[]>(
   tasks: { [K in keyof T]: Task<T[K]> },
   options: RunConcurrentOptions = {}
 ): Promise<{ [K in keyof T]: T[K] | ConcurrencyError }> {
-  const { concurrency = 1, stopOnError = true } = options;
+  const { concurrency = 5, stopOnError = true } = options;
   const results: any[] = new Array(tasks.length);
   let errorOccurred = false;
 
