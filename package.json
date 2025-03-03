@@ -1,6 +1,6 @@
 {
   "name": "@matheusbozetti/run-concurrent",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "A utility to run concurrent tasks with controlled concurrency",
   "type": "module",
   "license": "MIT",

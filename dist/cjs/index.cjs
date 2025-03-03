@@ -45,7 +45,7 @@ typeof SuppressedError === "function" ? SuppressedError : function (error, suppr
 
 function runConcurrent(tasks_1) {
     return __awaiter(this, arguments, void 0, function* (tasks, options = {}) {
-        const { concurrency = 1, stopOnError = true } = options;
+        const { concurrency = 5, stopOnError = true } = options;
         const results = new Array(tasks.length);
         let errorOccurred = false;
         const queue = tasks.map((task, index) => ({ task, index }));
