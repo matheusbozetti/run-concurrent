@@ -85,15 +85,17 @@ describe("runConcurrent", () => {
       async () => "Task 3",
     ];
 
-    const results = await runConcurrent(tasks, {
+    const { data, errorIndexes } = await runConcurrent(tasks, {
       concurrency: 2,
       stopOnError: false,
     });
 
-    expect(results[0]).toBe("Task 1");
-    expect(results[2]).toBe("Task 3");
-    expect(results[1]).toBeInstanceOf(ConcurrencyError);
-    expect((results[1] as ConcurrencyError).message).toBe("Failure");
+    expect(data[0]).toBe("Task 1");
+    expect(data[2]).toBe("Task 3");
+    expect(data[1]).toBeInstanceOf(ConcurrencyError);
+    expect((data[1] as ConcurrencyError).message).toBe("Failure");
+
+    expect(errorIndexes[0]).toBe(1);
   });
 
   it("should stop execution on first error when stopOnError is true", async () => {
@@ -138,15 +140,49 @@ describe("runConcurrent", () => {
       },
     ];
 
-    const results = await runConcurrent(tasks, {
+    const { data, errorIndexes } = await runConcurrent(tasks, {
       concurrency: 3,
       stopOnError: false,
     });
 
-    expect(results[0]).toBe("Task 1");
-    expect(results[1]).toBeInstanceOf(ConcurrencyError);
-    expect(results[2]).toBeInstanceOf(ConcurrencyError);
-    expect((results[1] as ConcurrencyError).index).toBe(1);
-    expect((results[2] as ConcurrencyError).index).toBe(2);
+    expect(data[0]).toBe("Task 1");
+    expect(data[1]).toBeInstanceOf(ConcurrencyError);
+    expect(data[2]).toBeInstanceOf(ConcurrencyError);
+    expect((data[1] as ConcurrencyError).index).toBe(1);
+    expect((data[2] as ConcurrencyError).index).toBe(2);
+
+    expect(errorIndexes.length).toBe(2);
+    expect(errorIndexes[0]).toBe(1);
+    expect(errorIndexes[1]).toBe(2);
+  });
+
+  it("should return ordered errors indexes", async () => {
+    const tasks = [
+      async () => "Task 1",
+      async () => {
+        await new Promise((_, reject) => setTimeout(reject, 200));
+      },
+      async () => {
+        throw new Error("Error at task 3");
+      },
+    ];
+
+    const { data, errorIndexes } = await runConcurrent(tasks, {
+      concurrency: 3,
+      stopOnError: false,
+    });
+
+    expect(data[0]).toBe("Task 1");
+    expect(data[1]).toBeInstanceOf(ConcurrencyError);
+    expect(data[2]).toBeInstanceOf(ConcurrencyError);
+    expect((data[1] as ConcurrencyError).index).toBe(1);
+    expect((data[2] as ConcurrencyError).index).toBe(2);
+    expect((data[2] as ConcurrencyError).originalError.message).toBe(
+      "Error at task 3"
+    );
+
+    expect(errorIndexes.length).toBe(2);
+    expect(errorIndexes[0]).toBe(1);
+    expect(errorIndexes[1]).toBe(2);
   });
 });
