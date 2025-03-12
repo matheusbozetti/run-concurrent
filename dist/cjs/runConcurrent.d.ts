@@ -13,10 +13,12 @@ interface RunConcurrentOptions {
  * @param {number} [options.concurrency=5] - The maximum number of tasks running in parallel. (Default: 5)
  * @param {boolean} [options.stopOnError=true] - If `true`, execution stops at the first error. (Default: true)
  *
- * @returns {Promise<Array<T | ConcurrencyError>>} A promise resolving to an array of results.
+ * @returns {Promise<Array<T>> | Promise<{ data: Array<T | ConcurrencyError>, errorIndexes: number[] }>}
  *
- * - If `stopOnError` is `true`, the function returns an array of successful results **only**, since execution stops on error.
- * - If `stopOnError` is `false`, the array may contain `ConcurrencyError` instances for failed tasks.
+ * - If `stopOnError` is `true` (or not provided), the function returns a **Promise resolving to an array of successful results only**.
+ * - If `stopOnError` is `false`, the function returns a **Promise resolving to an object**:
+ *   - `data`: An array where successful results are stored normally, but failed tasks contain a `ConcurrencyError` instance.
+ *   - `errorIndexes`: An array of indices corresponding to failed tasks.
  *
  * @throws {ConcurrencyError} If `stopOnError` is `true` and a task fails, the function throws a concurrency error.
  *
@@ -28,30 +30,29 @@ interface RunConcurrentOptions {
  *   async () => await fetchData(3),
  * ];
  * const results = await runConcurrent(tasks, { concurrency: 2, stopOnError: true });
+ * console.log(results); // [data1, data2, data3] (if all succeed)
  *
  * @example
  * // Running with concurrency 3 and continuing on errors
  * const results = await runConcurrent(tasks, { concurrency: 3, stopOnError: false });
- * results.forEach((result, index) => {
- *   if (result instanceof ConcurrencyError) {
- *     console.error(`Task ${index} failed:`, result.message);
- *   } else {
- *     console.log(`Task ${index} result:`, result);
- *   }
- * });
+ * console.log(results.data); // [data1, ConcurrencyError, data3]
+ * console.log(results.errorIndexes); // [1] (if the second task failed)
  */
-export declare function runConcurrent<T extends unknown[]>(tasks: {
-    [K in keyof T]: Task<T[K]>;
-}, options: RunConcurrentOptions & {
-    stopOnError: false;
-}): Promise<{
-    [K in keyof T]: T[K] | ConcurrencyError;
-}>;
 export declare function runConcurrent<T extends unknown[]>(tasks: {
     [K in keyof T]: Task<T[K]>;
 }, options?: RunConcurrentOptions & {
     stopOnError?: true;
 }): Promise<{
     [K in keyof T]: T[K];
+}>;
+export declare function runConcurrent<T extends unknown[]>(tasks: {
+    [K in keyof T]: Task<T[K]>;
+}, options: RunConcurrentOptions & {
+    stopOnError: false;
+}): Promise<{
+    data: {
+        [K in keyof T]: T[K] | ConcurrencyError;
+    };
+    errorIndexes: number[];
 }>;
 export {};

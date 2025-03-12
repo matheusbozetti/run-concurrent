@@ -1,5 +1,5 @@
 export default class ConcurrencyError extends Error {
+    readonly originalError: Error;
     readonly index: number;
-    readonly originalStack?: string | undefined;
-    constructor(message: string, index: number, originalStack?: string | undefined);
+    constructor(originalError: Error, index: number);
 }

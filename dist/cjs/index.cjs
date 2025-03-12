@@ -1,13 +1,12 @@
 'use strict';
 
 class ConcurrencyError extends Error {
-    constructor(message, index, originalStack) {
-        super(message);
+    constructor(originalError, index) {
+        var _a;
+        super((_a = originalError.message) !== null && _a !== void 0 ? _a : "Unknown error");
+        this.originalError = originalError;
         this.index = index;
-        this.originalStack = originalStack;
-        if (originalStack) {
-            this.stack = originalStack;
-        }
+        this.stack = originalError.stack;
     }
 }
 
@@ -47,6 +46,7 @@ function runConcurrent(tasks_1) {
     return __awaiter(this, arguments, void 0, function* (tasks, options = {}) {
         const { concurrency = 5, stopOnError = true } = options;
         const results = new Array(tasks.length);
+        const errorIndexes = [];
         let errorOccurred = false;
         const queue = tasks.map((task, index) => ({ task, index }));
         const worker = () => __awaiter(this, void 0, void 0, function* () {
@@ -59,19 +59,23 @@ function runConcurrent(tasks_1) {
                     results[index] = yield task();
                 }
                 catch (error) {
-                    if (!(error instanceof Error)) {
-                        throw new ConcurrencyError(String(error), index);
-                    }
+                    const normalizedError = error instanceof Error
+                        ? error
+                        : new Error(String(error !== null && error !== void 0 ? error : "Unknown error"));
                     if (stopOnError) {
                         errorOccurred = true;
-                        throw new ConcurrencyError(error.message, index, error.stack);
+                        throw new ConcurrencyError(normalizedError, index);
                     }
-                    results[index] = new ConcurrencyError(error.message, index, error.stack);
+                    results[index] = new ConcurrencyError(normalizedError, index);
+                    errorIndexes.push(index);
                 }
             }
         });
         yield Promise.all(Array.from({ length: concurrency }, () => worker()));
-        return results;
+        if (stopOnError) {
+            return results;
+        }
+        return { data: results, errorIndexes: errorIndexes.sort() };
     });
 }
 
