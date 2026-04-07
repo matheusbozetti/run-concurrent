@@ -1,6 +1,7 @@
 {
   "compilerOptions": {
     "target": "ES2016",
+    "lib": ["ES2020"],
     "module": "NodeNext",
     "moduleResolution": "nodenext",
     "declaration": true,
@@ -8,7 +9,7 @@
     "outDir": "./dist",
     "esModuleInterop": true,
     "strict": true,
-    "types": ["vitest/globals"]
+    "types": ["vitest/globals", "node"]
   },
   "include": ["src"],
   "exclude": ["node_modules", "dist"]

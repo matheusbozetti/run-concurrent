@@ -185,4 +185,53 @@ describe("runConcurrent", () => {
     expect(errorIndexes[0]).toBe(1);
     expect(errorIndexes[1]).toBe(2);
   });
+
+  it("should throw original error when throwOriginalError is true and stopOnError is true", async () => {
+    const originalError = new Error("Original failure");
+    const tasks = [
+      async () => "Task 1",
+      async () => {
+        throw originalError;
+      },
+    ];
+
+    await expect(
+      runConcurrent(tasks, {
+        concurrency: 2,
+        stopOnError: true,
+        throwOriginalError: true,
+      })
+    ).rejects.toBe(originalError);
+
+    await expect(
+      runConcurrent(tasks, {
+        concurrency: 2,
+        stopOnError: true,
+        throwOriginalError: true,
+      })
+    ).rejects.not.toBeInstanceOf(ConcurrencyError);
+  });
+
+  it("should return original error in data when throwOriginalError is true and stopOnError is false", async () => {
+    const originalError = new Error("Original failure");
+    const tasks = [
+      async () => "Task 1",
+      async () => {
+        throw originalError;
+      },
+      async () => "Task 3",
+    ];
+
+    const { data, errorIndexes } = await runConcurrent(tasks, {
+      concurrency: 2,
+      stopOnError: false,
+      throwOriginalError: true,
+    });
+
+    expect(data[0]).toBe("Task 1");
+    expect(data[1]).toBe(originalError);
+    expect(data[1]).not.toBeInstanceOf(ConcurrencyError);
+    expect(data[2]).toBe("Task 3");
+    expect(errorIndexes).toEqual([1]);
+  });
 });

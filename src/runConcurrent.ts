@@ -5,6 +5,7 @@ type Task<T> = () => Promise<T>;
 interface RunConcurrentOptions {
   concurrency?: number;
   stopOnError?: boolean;
+  throwOriginalError?: boolean;
 }
 
 /**
@@ -15,15 +16,16 @@ interface RunConcurrentOptions {
  * @param {Object} [options] - Configuration options for concurrency control.
  * @param {number} [options.concurrency=5] - The maximum number of tasks running in parallel. (Default: 5)
  * @param {boolean} [options.stopOnError=true] - If `true`, execution stops at the first error. (Default: true)
+ * @param {boolean} [options.throwOriginalError=false] - If `true`, throws or stores the original error instead of wrapping it in a `ConcurrencyError`. (Default: false)
  *
  * @returns {Promise<Array<T>> | Promise<{ data: Array<T | ConcurrencyError>, errorIndexes: number[] }>}
  *
  * - If `stopOnError` is `true` (or not provided), the function returns a **Promise resolving to an array of successful results only**.
  * - If `stopOnError` is `false`, the function returns a **Promise resolving to an object**:
- *   - `data`: An array where successful results are stored normally, but failed tasks contain a `ConcurrencyError` instance.
+ *   - `data`: An array where successful results are stored normally, but failed tasks contain a `ConcurrencyError` (or the original `Error` if `throwOriginalError` is `true`).
  *   - `errorIndexes`: An array of indices corresponding to failed tasks.
  *
- * @throws {ConcurrencyError} If `stopOnError` is `true` and a task fails, the function throws a concurrency error.
+ * @throws {ConcurrencyError} If `stopOnError` is `true` and a task fails, the function throws a `ConcurrencyError` (or the original error if `throwOriginalError` is `true`).
  *
  * @example
  * // Running three tasks with concurrency 2, stopping on error
@@ -48,6 +50,14 @@ export async function runConcurrent<T extends unknown[]>(
 
 export async function runConcurrent<T extends unknown[]>(
   tasks: { [K in keyof T]: Task<T[K]> },
+  options: RunConcurrentOptions & { stopOnError: false; throwOriginalError: true }
+): Promise<{
+  data: { [K in keyof T]: T[K] | Error };
+  errorIndexes: number[];
+}>;
+
+export async function runConcurrent<T extends unknown[]>(
+  tasks: { [K in keyof T]: Task<T[K]> },
   options: RunConcurrentOptions & { stopOnError: false }
 ): Promise<{
   data: { [K in keyof T]: T[K] | ConcurrencyError };
@@ -64,19 +74,18 @@ export async function runConcurrent<T extends unknown[]>(
       errorIndexes: number[];
     }
 > {
-  const { concurrency = 5, stopOnError = true } = options;
+  const { concurrency = 5, stopOnError = true, throwOriginalError = false } = options;
   const results: any[] = new Array(tasks.length);
   const errorIndexes: number[] = [];
-  let errorOccurred = false;
-
-  const queue = tasks.map((task, index) => ({ task, index }));
+  let nextIndex = 0;
+  let caughtError: unknown = undefined;
 
   const worker = async () => {
-    while (queue.length > 0 && (!stopOnError || !errorOccurred)) {
-      const item = queue.shift();
-      if (!item) return;
+    while (nextIndex < tasks.length) {
+      if (stopOnError && caughtError !== undefined) return;
 
-      const { task, index } = item;
+      const index = nextIndex++;
+      const task = tasks[index];
 
       try {
         results[index] = await task();
@@ -87,21 +96,29 @@ export async function runConcurrent<T extends unknown[]>(
             : new Error(String(error ?? "Unknown error"));
 
         if (stopOnError) {
-          errorOccurred = true;
-          throw new ConcurrencyError(normalizedError, index);
+          caughtError = throwOriginalError
+            ? normalizedError
+            : new ConcurrencyError(normalizedError, index);
+          return;
         }
 
-        results[index] = new ConcurrencyError(normalizedError, index);
+        results[index] = throwOriginalError
+          ? normalizedError
+          : new ConcurrencyError(normalizedError, index);
         errorIndexes.push(index);
       }
     }
   };
 
-  await Promise.all(Array.from({ length: concurrency }, () => worker()));
+  await Promise.allSettled(Array.from({ length: concurrency }, () => worker()));
+
+  if (caughtError !== undefined) {
+    throw caughtError;
+  }
 
   if (stopOnError) {
     return results as { [K in keyof T]: T[K] };
   }
 
-  return { data: results as any, errorIndexes: errorIndexes.sort() };
+  return { data: results as any, errorIndexes: errorIndexes.sort((a, b) => a - b) };
 }

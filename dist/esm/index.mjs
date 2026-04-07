@@ -42,17 +42,17 @@ typeof SuppressedError === "function" ? SuppressedError : function (error, suppr
 
 function runConcurrent(tasks_1) {
     return __awaiter(this, arguments, void 0, function* (tasks, options = {}) {
-        const { concurrency = 5, stopOnError = true } = options;
+        const { concurrency = 5, stopOnError = true, throwOriginalError = false } = options;
         const results = new Array(tasks.length);
         const errorIndexes = [];
-        let errorOccurred = false;
-        const queue = tasks.map((task, index) => ({ task, index }));
+        let nextIndex = 0;
+        let caughtError = undefined;
         const worker = () => __awaiter(this, void 0, void 0, function* () {
-            while (queue.length > 0 && (!stopOnError || !errorOccurred)) {
-                const item = queue.shift();
-                if (!item)
+            while (nextIndex < tasks.length) {
+                if (stopOnError && caughtError !== undefined)
                     return;
-                const { task, index } = item;
+                const index = nextIndex++;
+                const task = tasks[index];
                 try {
                     results[index] = yield task();
                 }
@@ -61,19 +61,26 @@ function runConcurrent(tasks_1) {
                         ? error
                         : new Error(String(error !== null && error !== void 0 ? error : "Unknown error"));
                     if (stopOnError) {
-                        errorOccurred = true;
-                        throw new ConcurrencyError(normalizedError, index);
+                        caughtError = throwOriginalError
+                            ? normalizedError
+                            : new ConcurrencyError(normalizedError, index);
+                        return;
                     }
-                    results[index] = new ConcurrencyError(normalizedError, index);
+                    results[index] = throwOriginalError
+                        ? normalizedError
+                        : new ConcurrencyError(normalizedError, index);
                     errorIndexes.push(index);
                 }
             }
         });
-        yield Promise.all(Array.from({ length: concurrency }, () => worker()));
+        yield Promise.allSettled(Array.from({ length: concurrency }, () => worker()));
+        if (caughtError !== undefined) {
+            throw caughtError;
+        }
         if (stopOnError) {
             return results;
         }
-        return { data: results, errorIndexes: errorIndexes.sort() };
+        return { data: results, errorIndexes: errorIndexes.sort((a, b) => a - b) };
     });
 }
 
