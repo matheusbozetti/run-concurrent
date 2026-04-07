@@ -1,162 +1,191 @@
-# runConcurrent
+# run-concurrent
 
-`runConcurrent` is a utility function that allows you to execute multiple asynchronous tasks concurrently, with control over the concurrency level and error handling. It provides an alternative to `Promise.all` that is more efficient for large numbers of tasks and ensures a predictable execution flow.
+Lightweight TypeScript utility to run async functions concurrently with a **concurrency limit**. A smarter alternative to `Promise.all` for **batch processing**, **rate limiting**, and **parallel task execution** in Node.js.
 
-## 🚀 Why use `runConcurrent` instead of `Promise.all`?
+**Zero dependencies** | **Full TypeScript support** | **ESM & CJS**
 
-While `Promise.all` runs all promises in parallel with **no limit**, `runConcurrent` allows you to:
+## Why not just `Promise.all`?
 
-✅ Control concurrency level (`concurrency` option).  
-✅ Handle errors gracefully without stopping execution (`stopOnError: false`).  
-✅ Stop execution on the first failure (`stopOnError: true`).  
-✅ Maintain an efficient event loop by preventing task overload.  
-✅ Get the results in the order the promises were declared and not executed (Just like `Promise.all`).  
+`Promise.all` fires every promise at once. With hundreds of tasks (API calls, DB queries, file operations), that means resource exhaustion, rate limit errors, and unpredictable behavior.
 
-## 📦 Installation
+`runConcurrent` gives you:
+
+- **Concurrency control** — limit how many async operations run at the same time
+- **Graceful error handling** — continue execution even when some tasks fail (`stopOnError: false`)
+- **Fail-fast mode** — stop immediately on the first error (`stopOnError: true`)
+- **Original error propagation** — optionally rethrow the original error instead of wrapping it (`throwOriginalError: true`)
+- **Ordered results** — results come back in declaration order, not execution order
+- **Strong type inference** — preserves tuple types for heterogeneous task arrays
+
+## Installation
 
 ```sh
-pnpm add @matheusbozetti/run-concurrent
-# or
 npm install @matheusbozetti/run-concurrent
+# or
+pnpm add @matheusbozetti/run-concurrent
 # or
 yarn add @matheusbozetti/run-concurrent
 ```
 
-## ✨ Usage
+## Quick Start
 
 ```ts
 import { runConcurrent } from "@matheusbozetti/run-concurrent";
 
-const tasks = [
-  async () => "Task 1",
-  async () => "Task 2",
-  async () => "Task 3",
-];
-
-// Run tasks with concurrency = 2, stopping on first error
-const results = await runConcurrent(tasks, {
-  concurrency: 2,
-  stopOnError: true,
-});
-console.log(results); // [ 'Task 1', 'Task 2', 'Task 3' ]
+const results = await runConcurrent(
+  [
+    async () => fetch("/api/users").then((r) => r.json()),
+    async () => fetch("/api/posts").then((r) => r.json()),
+    async () => fetch("/api/comments").then((r) => r.json()),
+  ],
+  { concurrency: 2 }
+);
+// results: [users, posts, comments] — in order, 2 at a time
 ```
 
-## ⚙️ Options
+## API
 
-### `concurrency`
+### `runConcurrent(tasks, options?)`
 
-- Type: `number`
-- Default: `5`
-- Controls how many tasks run simultaneously.
+Executes an array of async functions with controlled concurrency.
 
-### `stopOnError`
+#### Parameters
 
-- Type: `boolean`
-- Default: `true`
-- If `true`, stops execution immediately on the first error and returns an array of successful results.
-- If `false`, continues executing remaining tasks and returns an **object** with both results and error indices.
+| Parameter | Type | Description |
+| --------- | ---- | ----------- |
+| `tasks` | `Array<() => Promise<T>>` | Array of async functions to execute |
+| `options` | `RunConcurrentOptions` | Configuration (see below) |
 
-## 🛠️ Error Handling
+#### Options
 
-If `stopOnError: false`, errors are captured as instances of `ConcurrencyError` and returned along with their indexes:
+| Option | Type | Default | Description |
+| ------ | ---- | ------- | ----------- |
+| `concurrency` | `number` | `5` | Maximum number of tasks running in parallel |
+| `stopOnError` | `boolean` | `true` | If `true`, stops on first failure and throws. If `false`, continues and collects errors |
+| `throwOriginalError` | `boolean` | `false` | If `true`, throws/stores the original `Error` instead of wrapping it in `ConcurrencyError` |
+
+#### Return Types
+
+**When `stopOnError: true`** (default) — returns `Promise<T[]>`
+
+```ts
+const results = await runConcurrent(tasks, { stopOnError: true });
+// T[] — array of resolved values
+```
+
+**When `stopOnError: false`** — returns `Promise<{ data, errorIndexes }>`
+
+```ts
+const results = await runConcurrent(tasks, { stopOnError: false });
+// { data: (T | ConcurrencyError)[], errorIndexes: number[] }
+```
+
+**When `stopOnError: false` + `throwOriginalError: true`** — errors are the original `Error` instead of `ConcurrencyError`
+
+```ts
+const results = await runConcurrent(tasks, {
+  stopOnError: false,
+  throwOriginalError: true,
+});
+// { data: (T | Error)[], errorIndexes: number[] }
+```
+
+## Error Handling
+
+### Default: `ConcurrencyError` wrapper
+
+When a task fails, it is wrapped in a `ConcurrencyError` that includes:
+
+- `message` — the original error message
+- `index` — position of the failed task in the input array
+- `originalError` — reference to the original `Error` object
 
 ```ts
 const results = await runConcurrent(
   [
-    async () => "Task 1",
-    async () => {
-      throw new Error("Failure");
-    },
-    async () => "Task 3",
+    async () => "ok",
+    async () => { throw new Error("timeout"); },
+    async () => "ok",
   ],
   { stopOnError: false }
 );
 
-console.log(results);
-// Output:
-// {
-//   data: [ 'Task 1', ConcurrencyError: 'Failure', 'Task 3' ],
-//   errorIndexes: [1]
-// }
+console.log(results.data);
+// ["ok", ConcurrencyError { message: "timeout", index: 1 }, "ok"]
+console.log(results.errorIndexes);
+// [1]
 ```
 
-### `ConcurrencyError` Type
+### Propagating the original error
 
-When an error occurs, `ConcurrencyError` provides detailed information.
-Each `ConcurrencyError` contains:
-- `message`: A description of the error.
-- `index`: The index of the failed task in the original array.
-- `originalError`: The original error that caused the failure, in case you need to validate the instance type or this type of information.
-
-## 📌 Return Type Behavior
-
-Depending on the value of `stopOnError`, the return type differs:
-
-### ✅ When `stopOnError: true` (Default)
-```ts
-const results = await runConcurrent(tasks, { stopOnError: true });
-// Returns an array of successful results: [T, T, T]
-```
-
-### ✅ When `stopOnError: false`
-```ts
-const results = await runConcurrent(tasks, { stopOnError: false });
-// Returns an object:
-// {
-//   data: [T | ConcurrencyError, T | ConcurrencyError, T | ConcurrencyError],
-//   errorIndexes: number[]
-// }
-```
-
-## 🧪 Unit Tests
-
-This package includes comprehensive tests using [Vitest](https://vitest.dev/). To run them:
-
-```sh
-pnpm test  # or npm test / yarn test
-```
-
-## Type Inference Considerations
-
-### Ensuring Correct Type Inference
-
-To ensure correct type inference when using `runConcurrent`, you should either inline the task array or explicitly type each promise:
-
-#### ✅ Correct Type Inference:
+Use `throwOriginalError: true` when you need to check `instanceof` or preserve custom error types:
 
 ```ts
+class ApiError extends Error {
+  constructor(public statusCode: number) {
+    super(`HTTP ${statusCode}`);
+  }
+}
+
+// With stopOnError: true — throws the original ApiError
+try {
+  await runConcurrent(
+    [async () => { throw new ApiError(429); }],
+    { stopOnError: true, throwOriginalError: true }
+  );
+} catch (error) {
+  console.log(error instanceof ApiError); // true
+  console.log(error.statusCode); // 429
+}
+
+// With stopOnError: false — stores the original error in the data array
+const results = await runConcurrent(
+  [async () => { throw new ApiError(429); }],
+  { stopOnError: false, throwOriginalError: true }
+);
+console.log(results.data[0] instanceof ApiError); // true
+```
+
+## TypeScript Type Inference
+
+`runConcurrent` preserves individual return types when tasks are inlined or declared with `as const`:
+
+```ts
+// Inlined — TypeScript infers [number, string, boolean]
 const results = await runConcurrent([
   async () => 42,
   async () => "hello",
   async () => true,
 ]);
-// TypeScript infers: [number, string, boolean]
-```
 
-#### ❌ Incorrect Type Inference with Predefined Arrays:
-
-```ts
-const tasks = [async () => 42, async () => "hello", async () => true];
+// With `as const` — same inference
+const tasks = [
+  async () => 42,
+  async () => "hello",
+  async () => true,
+] as const;
 const results = await runConcurrent(tasks);
-// TypeScript infers: (string | number | boolean)[] ❌ (loses tuple types)
+// [number, string, boolean]
 ```
 
-#### ✅ Fix: Use `as const` for Tuple Inference:
+Without `as const`, TypeScript widens the type to `(string | number | boolean)[]`.
 
-```ts
-const tasks = [async () => 42, async () => "hello", async () => true] as const;
-const results = await runConcurrent(tasks);
-// TypeScript infers: [number, string, boolean]
+## Use Cases
+
+- **API batch requests** — call multiple endpoints without overwhelming the server
+- **Database bulk operations** — insert/update rows with connection pool limits
+- **File processing** — read/write many files without exhausting file descriptors
+- **Web scraping** — crawl pages with controlled request rate
+- **Microservice orchestration** — fan-out requests to downstream services
+
+## Testing
+
+```sh
+pnpm test  # or npm test / yarn test
 ```
 
-## 📌 Stability & Contributions
+Tests are written with [Vitest](https://vitest.dev/).
 
-- `runConcurrent` is stable and changes are made only in case of bugs.
-
-- Pull requests are welcome! If you find a bug or have an improvement suggestion, feel free to open an issue or submit a PR.
-
-## 📜 License
+## License
 
 MIT License © Matheus
-
-
