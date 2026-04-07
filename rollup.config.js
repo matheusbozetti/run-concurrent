@@ -8,14 +8,22 @@ export default [
       {
         file: "./dist/cjs/index.cjs",
         format: "cjs",
-        sourcemap: true,
+        sourcemap: false,
       },
       {
         file: "./dist/esm/index.mjs",
         format: "esm",
-        sourcemap: true,
+        sourcemap: false,
       },
     ],
-    plugins: [resolve(), typescript({ tsconfig: "./tsconfig.json" })],
+    plugins: [
+      resolve(),
+      typescript({
+        tsconfig: "./tsconfig.json",
+        declaration: true,
+        declarationDir: "./dist/esm",
+        exclude: ["src/**/*.spec.ts"],
+      }),
+    ],
   },
 ];
