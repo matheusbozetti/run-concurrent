@@ -1,6 +1,6 @@
 {
   "name": "@matheusbozetti/run-concurrent",
-  "version": "1.1.4",
+  "version": "1.2.0",
   "description": "Run async functions concurrently with a concurrency limit. A lightweight, type-safe alternative to Promise.all for batch processing and parallel task execution.",
   "type": "module",
   "license": "MIT",
