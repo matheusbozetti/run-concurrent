@@ -10,7 +10,8 @@ Lightweight TypeScript utility to run async functions concurrently with a **conc
 
 `runConcurrent` gives you:
 
-- **Concurrency control** — limit how many async operations run at the same time
+- **Concurrency control** — limit how many operations run at the same time
+- **Sync & async tasks** — works with both regular functions and async functions
 - **Graceful error handling** — continue execution even when some tasks fail (`stopOnError: false`)
 - **Fail-fast mode** — stop immediately on the first error (`stopOnError: true`)
 - **Original error propagation** — optionally rethrow the original error instead of wrapping it (`throwOriginalError: true`)
@@ -53,7 +54,7 @@ Executes an array of async functions with controlled concurrency.
 
 | Parameter | Type | Description |
 | --------- | ---- | ----------- |
-| `tasks` | `Array<() => Promise<T>>` | Array of async functions to execute |
+| `tasks` | `Array<() => T \| Promise<T>>` | Array of sync or async functions to execute |
 | `options` | `RunConcurrentOptions` | Configuration (see below) |
 
 #### Options
@@ -146,6 +147,21 @@ const results = await runConcurrent(
 console.log(results.data[0] instanceof ApiError); // true
 ```
 
+## Sync Functions
+
+Sync functions work the same way as async ones — no changes needed:
+
+```ts
+const results = await runConcurrent(
+  [
+    () => expensiveComputation(1),
+    () => expensiveComputation(2),
+    async () => await fetchData(3),   // mix freely
+  ],
+  { concurrency: 2 }
+);
+```
+
 ## TypeScript Type Inference
 
 `runConcurrent` preserves individual return types when tasks are inlined or declared with `as const`:
@@ -153,15 +169,15 @@ console.log(results.data[0] instanceof ApiError); // true
 ```ts
 // Inlined — TypeScript infers [number, string, boolean]
 const results = await runConcurrent([
-  async () => 42,
-  async () => "hello",
+  () => 42,
+  () => "hello",
   async () => true,
 ]);
 
 // With `as const` — same inference
 const tasks = [
-  async () => 42,
-  async () => "hello",
+  () => 42,
+  () => "hello",
   async () => true,
 ] as const;
 const results = await runConcurrent(tasks);

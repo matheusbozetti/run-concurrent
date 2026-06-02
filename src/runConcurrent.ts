@@ -1,6 +1,6 @@
 import ConcurrencyError from "./errors/ConcurrencyError.js";
 
-type Task<T> = () => Promise<T>;
+type Task<T> = () => T | Promise<T>;
 
 interface RunConcurrentOptions {
   concurrency?: number;
@@ -75,6 +75,11 @@ export async function runConcurrent<T extends unknown[]>(
     }
 > {
   const { concurrency = 5, stopOnError = true, throwOriginalError = false } = options;
+
+  if (tasks.length === 0) {
+    return stopOnError ? ([] as any) : { data: [], errorIndexes: [] };
+  }
+
   const results: any[] = new Array(tasks.length);
   const errorIndexes: number[] = [];
   let nextIndex = 0;
@@ -110,7 +115,7 @@ export async function runConcurrent<T extends unknown[]>(
     }
   };
 
-  await Promise.allSettled(Array.from({ length: concurrency }, () => worker()));
+  await Promise.allSettled(Array.from({ length: Math.min(concurrency, tasks.length) }, () => worker()));
 
   if (caughtError !== undefined) {
     throw caughtError;
