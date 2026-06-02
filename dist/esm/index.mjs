@@ -42,7 +42,10 @@ typeof SuppressedError === "function" ? SuppressedError : function (error, suppr
 
 function runConcurrent(tasks_1) {
     return __awaiter(this, arguments, void 0, function* (tasks, options = {}) {
-        const { concurrency = 5, stopOnError = true, throwOriginalError = false } = options;
+        const { concurrency = 5, stopOnError = true, throwOriginalError = false, } = options;
+        if (tasks.length === 0) {
+            return stopOnError ? [] : { data: [], errorIndexes: [] };
+        }
         const results = new Array(tasks.length);
         const errorIndexes = [];
         let nextIndex = 0;
@@ -73,14 +76,17 @@ function runConcurrent(tasks_1) {
                 }
             }
         });
-        yield Promise.allSettled(Array.from({ length: concurrency }, () => worker()));
+        yield Promise.allSettled(Array.from({ length: Math.min(concurrency, tasks.length) }, () => worker()));
         if (caughtError !== undefined) {
             throw caughtError;
         }
         if (stopOnError) {
             return results;
         }
-        return { data: results, errorIndexes: errorIndexes.sort((a, b) => a - b) };
+        return {
+            data: results,
+            errorIndexes: errorIndexes.sort((a, b) => a - b),
+        };
     });
 }
 

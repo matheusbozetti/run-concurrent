@@ -1,6 +1,6 @@
 import ConcurrencyError from "./errors/ConcurrencyError.js";
 
-type Task<T> = () => Promise<T>;
+type Task<T> = () => T | Promise<T>;
 
 interface RunConcurrentOptions {
   concurrency?: number;
@@ -45,12 +45,15 @@ interface RunConcurrentOptions {
  */
 export async function runConcurrent<T extends unknown[]>(
   tasks: { [K in keyof T]: Task<T[K]> },
-  options?: RunConcurrentOptions & { stopOnError?: true }
+  options?: RunConcurrentOptions & { stopOnError?: true },
 ): Promise<{ [K in keyof T]: T[K] }>;
 
 export async function runConcurrent<T extends unknown[]>(
   tasks: { [K in keyof T]: Task<T[K]> },
-  options: RunConcurrentOptions & { stopOnError: false; throwOriginalError: true }
+  options: RunConcurrentOptions & {
+    stopOnError: false;
+    throwOriginalError: true;
+  },
 ): Promise<{
   data: { [K in keyof T]: T[K] | Error };
   errorIndexes: number[];
@@ -58,7 +61,7 @@ export async function runConcurrent<T extends unknown[]>(
 
 export async function runConcurrent<T extends unknown[]>(
   tasks: { [K in keyof T]: Task<T[K]> },
-  options: RunConcurrentOptions & { stopOnError: false }
+  options: RunConcurrentOptions & { stopOnError: false },
 ): Promise<{
   data: { [K in keyof T]: T[K] | ConcurrencyError };
   errorIndexes: number[];
@@ -66,7 +69,7 @@ export async function runConcurrent<T extends unknown[]>(
 
 export async function runConcurrent<T extends unknown[]>(
   tasks: { [K in keyof T]: Task<T[K]> },
-  options: RunConcurrentOptions = {}
+  options: RunConcurrentOptions = {},
 ): Promise<
   | { [K in keyof T]: T[K] }
   | {
@@ -74,7 +77,16 @@ export async function runConcurrent<T extends unknown[]>(
       errorIndexes: number[];
     }
 > {
-  const { concurrency = 5, stopOnError = true, throwOriginalError = false } = options;
+  const {
+    concurrency = 5,
+    stopOnError = true,
+    throwOriginalError = false,
+  } = options;
+
+  if (tasks.length === 0) {
+    return stopOnError ? ([] as any) : { data: [] as any, errorIndexes: [] };
+  }
+
   const results: any[] = new Array(tasks.length);
   const errorIndexes: number[] = [];
   let nextIndex = 0;
@@ -110,7 +122,9 @@ export async function runConcurrent<T extends unknown[]>(
     }
   };
 
-  await Promise.allSettled(Array.from({ length: concurrency }, () => worker()));
+  await Promise.allSettled(
+    Array.from({ length: Math.min(concurrency, tasks.length) }, () => worker()),
+  );
 
   if (caughtError !== undefined) {
     throw caughtError;
@@ -120,5 +134,8 @@ export async function runConcurrent<T extends unknown[]>(
     return results as { [K in keyof T]: T[K] };
   }
 
-  return { data: results as any, errorIndexes: errorIndexes.sort((a, b) => a - b) };
+  return {
+    data: results as any,
+    errorIndexes: errorIndexes.sort((a, b) => a - b),
+  };
 }

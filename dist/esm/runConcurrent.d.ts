@@ -1,5 +1,5 @@
 import ConcurrencyError from "./errors/ConcurrencyError.js";
-type Task<T> = () => Promise<T>;
+type Task<T> = () => T | Promise<T>;
 interface RunConcurrentOptions {
     concurrency?: number;
     stopOnError?: boolean;
